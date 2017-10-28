@@ -17,6 +17,17 @@ void *safe_malloc(size_t size, const char *errmsg)
     return dest;
 }
 
+void *safe_realloc(void *ptr, size_t size, const char *errmsg)
+{
+    void *dest;
+
+    if((dest = realloc(ptr, size)) == NULL) {
+        die(errmsg); 
+    }
+
+    return dest;
+}
+
 int safe_open(const char *filename, int flags, const char *errmsg)
 {
     int fd;
