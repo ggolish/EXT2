@@ -1,4 +1,5 @@
 #include "ext2.h"
+#include "utility.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,7 +13,6 @@
 #define BYTE 8
 #define KB 1024
 #define SB_OFFSET 1024
-#define BG_OFFSET 2048
 #define EXT2_S_IFDIR 0x4000
 
 static void error_msg(const char *err);
@@ -25,27 +25,17 @@ EXT2 *ext2_init(char *disk)
     unsigned int i;
     unsigned int offset;
 
-    if(!(fs = (EXT2 *)malloc(sizeof(EXT2)))) {
-        error_msg("memory allocation error!");
-        return NULL;
-    }   
-
-    fs->sb = (SUPERBLOCK *)malloc(sizeof(SUPERBLOCK));
+    fs = (EXT2 *)safe_malloc(sizeof(EXT2), 
+            "Failed to allocate memory for file system!");
+    fs->sb = (SUPERBLOCK *)safe_malloc(sizeof(SUPERBLOCK), 
+            "Failed to allocate memory for superblock!");
 
     // Open filesystem
-    if((fs->fd = open(disk, O_RDONLY)) == -1) {
-        error_msg("Unable to open disk!");
-        ext2_close(fs);
-        return NULL;
-    }
+    fs->fd = safe_open(disk, O_RDONLY, "Unable to open disk!");
 
     // Read superblock from filesystem
     lseek(fs->fd, SB_OFFSET, SEEK_SET);
-    if((read(fs->fd, fs->sb, sizeof(SUPERBLOCK))) <= 0) {
-        error_msg("unable to read superblock!");
-        ext2_close(fs);
-        return NULL;
-    }
+    safe_read(fs->fd, fs->sb, sizeof(SUPERBLOCK), "Failed to read from disk!");
 
     // Calculate block size for filesystem
     fs->block_size = KB << fs->sb->s_log_block_size;
@@ -53,12 +43,15 @@ EXT2 *ext2_init(char *disk)
     // Calculate number of block groups
     fs->n_bg = fs->sb->s_free_blocks_count / fs->sb->s_blocks_per_group;
     if(fs->n_bg == 0) fs->n_bg++;
-    fs->bg = (BLOCKGROUP **)malloc(fs->n_bg * sizeof(BLOCKGROUP *));
+    fs->bg = (BLOCKGROUP **)safe_malloc(fs->n_bg * sizeof(BLOCKGROUP *), 
+            "Failed to allocate memory for block group descriptor table!");
 
-    // Read block group descriptors
-    offset = BG_OFFSET;
+    // Read block group descriptors, start at third block for 1kb systems or
+    // second block for larger block systems
+    offset = (fs->block_size == KB) ? 2 * KB : fs->block_size;
     for(i = 0; i < fs->n_bg; ++i) {
-        fs->bg[i] = (BLOCKGROUP *)malloc(sizeof(BLOCKGROUP));
+        fs->bg[i] = (BLOCKGROUP *)safe_malloc(sizeof(BLOCKGROUP), 
+                "Failed to allocate memory for block group descriptor!");
         lseek(fs->fd, offset, SEEK_SET);
         read(fs->fd, fs->bg[i], sizeof(BLOCKGROUP));
         offset += sizeof(BLOCKGROUP);
