@@ -15,68 +15,68 @@
 #define SB_OFFSET 1024
 #define EXT2_S_IFDIR 0x4000
 
+// Global filesystem structure
+static EXT2 *ext2fs;
+
 static void error_msg(const char *err);
 static LLDIRLIST *make_lldirlist_node(LLDIR *ld);
 static void lldirlist_insert(LLDIRLIST **head, LLDIR *ld);
 
-EXT2 *ext2_init(char *disk)
+void ext2_init(char *disk)
 {
-    EXT2 *fs;
     unsigned int i;
     unsigned int offset;
 
-    fs = (EXT2 *)safe_malloc(sizeof(EXT2), 
+    ext2fs = (EXT2 *)safe_malloc(sizeof(EXT2), 
             "Failed to allocate memory for file system!");
-    fs->sb = (SUPERBLOCK *)safe_malloc(sizeof(SUPERBLOCK), 
+    ext2fs->sb = (SUPERBLOCK *)safe_malloc(sizeof(SUPERBLOCK), 
             "Failed to allocate memory for superblock!");
 
     // Open filesystem
-    fs->fd = safe_open(disk, O_RDONLY, "Unable to open disk!");
+    ext2fs->fd = safe_open(disk, O_RDONLY, "Unable to open disk!");
 
     // Read superblock from filesystem
-    lseek(fs->fd, SB_OFFSET, SEEK_SET);
-    safe_read(fs->fd, fs->sb, sizeof(SUPERBLOCK), "Failed to read from disk!");
+    lseek(ext2fs->fd, SB_OFFSET, SEEK_SET);
+    safe_read(ext2fs->fd, ext2fs->sb, sizeof(SUPERBLOCK), "Failed to read from disk!");
 
     // Calculate block size for filesystem
-    fs->block_size = KB << fs->sb->s_log_block_size;
+    ext2fs->block_size = KB << ext2fs->sb->s_log_block_size;
 
     // Calculate number of block groups
-    fs->n_bg = fs->sb->s_free_blocks_count / fs->sb->s_blocks_per_group;
-    if(fs->n_bg == 0) fs->n_bg++;
-    fs->bg = (BLOCKGROUP **)safe_malloc(fs->n_bg * sizeof(BLOCKGROUP *), 
+    ext2fs->n_bg = ext2fs->sb->s_free_blocks_count / ext2fs->sb->s_blocks_per_group;
+    if(ext2fs->n_bg == 0) ext2fs->n_bg++;
+    ext2fs->bg = (BLOCKGROUP **)safe_malloc(ext2fs->n_bg * sizeof(BLOCKGROUP *), 
             "Failed to allocate memory for block group descriptor table!");
 
     // Read block group descriptors, start at third block for 1kb systems or
     // second block for larger block systems
-    offset = (fs->block_size == KB) ? 2 * KB : fs->block_size;
-    for(i = 0; i < fs->n_bg; ++i) {
-        fs->bg[i] = (BLOCKGROUP *)safe_malloc(sizeof(BLOCKGROUP), 
+    offset = (ext2fs->block_size == KB) ? 2 * KB : ext2fs->block_size;
+    for(i = 0; i < ext2fs->n_bg; ++i) {
+        ext2fs->bg[i] = (BLOCKGROUP *)safe_malloc(sizeof(BLOCKGROUP), 
                 "Failed to allocate memory for block group descriptor!");
-        lseek(fs->fd, offset, SEEK_SET);
-        read(fs->fd, fs->bg[i], sizeof(BLOCKGROUP));
+        lseek(ext2fs->fd, offset, SEEK_SET);
+        read(ext2fs->fd, ext2fs->bg[i], sizeof(BLOCKGROUP));
         offset += sizeof(BLOCKGROUP);
     }
-
-    return fs;
 }
 
-void ext2_close(EXT2 *fs)
+void ext2_close()
 {
     unsigned int i;
 
-    if(fs->fd != -1)
-        close(fs->fd);
-    free(fs->sb);
+    if(ext2fs->fd != -1)
+        close(ext2fs->fd);
+    free(ext2fs->sb);
 
-    for(i = 0; i < fs->n_bg; ++i)
-        free(fs->bg[i]);
+    for(i = 0; i < ext2fs->n_bg; ++i)
+        free(ext2fs->bg[i]);
 
-    free(fs->bg);
+    free(ext2fs->bg);
 
-    free(fs);
+    free(ext2fs);
 }
 
-LLDIRLIST *ext2_get_top_level(EXT2 *fs)
+LLDIRLIST *ext2_get_top_level()
 {
     INODETABLE it;
     LLDIR *ld = NULL;
@@ -84,9 +84,9 @@ LLDIRLIST *ext2_get_top_level(EXT2 *fs)
     unsigned int offset, i;
 
     // Read inode structure pointed to by first block group descriptor
-    lseek(fs->fd, fs->bg[0]->bg_inode_table * fs->block_size + fs->sb->s_inode_size, SEEK_SET);
+    lseek(ext2fs->fd, ext2fs->bg[0]->bg_inode_table * ext2fs->block_size + ext2fs->sb->s_inode_size, SEEK_SET);
 
-    if((read(fs->fd, &it, sizeof(INODETABLE))) <= 0) {
+    if((read(ext2fs->fd, &it, sizeof(INODETABLE))) <= 0) {
         fprintf(stderr, "Unable to read first inode table!\n");
         exit(69);
     }
@@ -102,9 +102,9 @@ LLDIRLIST *ext2_get_top_level(EXT2 *fs)
     ld = (LLDIR *)malloc(sizeof(LLDIR));
     for(i = 0; i < it.i_blocks; ++i) {
         if(it.i_block[i] != 0) {
-            while(offset < fs->block_size) {
-                lseek(fs->fd, (it.i_block[i]) * fs->block_size + offset, SEEK_SET);
-                read(fs->fd, ld, sizeof(LLDIR));
+            while(offset < ext2fs->block_size) {
+                lseek(ext2fs->fd, (it.i_block[i]) * ext2fs->block_size + offset, SEEK_SET);
+                read(ext2fs->fd, ld, sizeof(LLDIR));
                 lldirlist_insert(&head, ld);
                 offset += ld->rec_len;
             }
@@ -139,14 +139,14 @@ void ext2_free_lldirlist(LLDIRLIST *t)
     free(t);
 }
 
-int ext2_read_inode_bitmap(EXT2 *fs, int bgn, BITMAP *ibm)
+int ext2_read_inode_bitmap(int bgn, BITMAP *ibm)
 {
     int nbytes;
 
-    nbytes = ceil((float)fs->sb->s_inodes_per_group / BYTE);
+    nbytes = ceil((float)ext2fs->sb->s_inodes_per_group / BYTE);
     (*ibm) = (BITMAP)malloc(nbytes);
-    lseek(fs->fd, (fs->bg[bgn]->bg_inode_bitmap) * fs->block_size, SEEK_SET);
-    read(fs->fd, (*ibm), nbytes);
+    lseek(ext2fs->fd, (ext2fs->bg[bgn]->bg_inode_bitmap) * ext2fs->block_size, SEEK_SET);
+    read(ext2fs->fd, (*ibm), nbytes);
     return nbytes;
 }
 

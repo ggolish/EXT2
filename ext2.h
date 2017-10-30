@@ -100,7 +100,7 @@ typedef
     unsigned char
 BITMASK;
 
-EXT2 *ext2_init(char *disk);
+void ext2_init(char *disk);
 void ext2_close(EXT2 *fs);
 
 int ext2_read_inode_bitmap(EXT2 *fs, int bgn, BITMAP *ibm);
