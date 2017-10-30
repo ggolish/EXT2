@@ -16,11 +16,12 @@
 #define EXT2_S_IFDIR 0x4000
 
 // Global filesystem structure
-static EXT2 *ext2fs;
+static EXT2 *ext2fs = NULL;
 
 static void error_msg(const char *err);
 static LLDIRLIST *make_lldirlist_node(LLDIR *ld);
 static void lldirlist_insert(LLDIRLIST **head, LLDIR *ld);
+static LLDIR *find_dir_by_name(LLDIRLIST *dir, char *name);
 
 void ext2_init(char *disk)
 {
@@ -33,7 +34,7 @@ void ext2_init(char *disk)
             "Failed to allocate memory for superblock!");
 
     // Open filesystem
-    ext2fs->fd = safe_open(disk, O_RDONLY, "Unable to open disk!");
+    ext2fs->fd = safe_open(disk, O_APPEND, "Unable to open disk!");
 
     // Read superblock from filesystem
     lseek(ext2fs->fd, SB_OFFSET, SEEK_SET);
@@ -58,6 +59,13 @@ void ext2_init(char *disk)
         read(ext2fs->fd, ext2fs->bg[i], sizeof(BLOCKGROUP));
         offset += sizeof(BLOCKGROUP);
     }
+}
+
+// Checks if file system has been initialized
+int ext2checkfs()
+{
+    if(!ext2fs) return 0;
+    return 1;
 }
 
 void ext2_close()
@@ -148,6 +156,25 @@ int ext2_read_inode_bitmap(int bgn, BITMAP *ibm)
     lseek(ext2fs->fd, (ext2fs->bg[bgn]->bg_inode_bitmap) * ext2fs->block_size, SEEK_SET);
     read(ext2fs->fd, (*ibm), nbytes);
     return nbytes;
+}
+
+INODETABLE *ext2_read_inode(LLDIRLIST *dir, char **path, int index, int len)
+{
+    if(index == len) return NULL;
+    
+    LLDIR *ld;
+
+    if(!(ld = find_dir_by_name(dir, path[index]))) return NULL;
+    return NULL;
+}
+
+static LLDIR *find_dir_by_name(LLDIRLIST *dir, char *name)
+{ 
+    if(!dir) return NULL;
+
+    dir->ld->name[dir->ld->name_len + 1] = '\0';
+    if(strcmp(name, dir->ld->name) == 0) return dir->ld;
+    return find_dir_by_name(dir->next, name);
 }
 
 static LLDIRLIST *make_lldirlist_node(LLDIR *ld)

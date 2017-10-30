@@ -7,14 +7,19 @@
 
 static char **split(const char *str, int *size);
 
-EXT2_FILE *ext2open(EXT2 *fs, const char *pathname, int flags)
+EXT2_FILE *ext2open(const char *pathname, int flags)
 {
     EXT2_FILE *ext2fd;
     char **pieces;
     int len;
 
+    if(!ext2checkfs())
+        die("Filesystem not initialized! Call ext2_init(\"path-to-disk\")");
+
     ext2fd = (EXT2_FILE *)safe_malloc(sizeof(EXT2_FILE), 
             "Failed to allocate memory for ext2 file structure!");
+
+    ext2fd->flags = flags;
 
     // Split path into pieces
     pieces = (char **)split(pathname, &len);

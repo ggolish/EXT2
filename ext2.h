@@ -109,4 +109,6 @@ LLDIRLIST *ext2_get_top_level(EXT2 *fs);
 void ext2_free_lldirlist(LLDIRLIST *t);
 void ext2_print_lldirlist(LLDIRLIST *lldir);
 
+extern int ext2checkfs();
+
 #endif
