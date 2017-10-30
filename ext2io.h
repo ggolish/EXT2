@@ -7,7 +7,8 @@
 #include "ext2.h"
 
 typedef struct {
-    int fd;
+    INODETABLE *inode;
+    char **content;
     int flags;
 } EXT2_FILE;
 
