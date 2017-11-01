@@ -23,6 +23,7 @@ static LLDIRLIST *make_lldirlist_node(LLDIR *ld);
 static void lldirlist_insert(LLDIRLIST **head, LLDIR *ld);
 static LLDIR *find_dir_by_name(LLDIRLIST *dir, char *name);
 
+// Initializes the file system
 void ext2_init(char *disk)
 {
     unsigned int i;
@@ -59,6 +60,10 @@ void ext2_init(char *disk)
         read(ext2fs->fd, ext2fs->bg[i], sizeof(BLOCKGROUP));
         offset += sizeof(BLOCKGROUP);
     }
+
+    // Initialize open files list
+    ext2fs->open_files = NULL;
+    ext2fs->nfiles = 0;
 }
 
 // Checks if file system has been initialized
@@ -68,6 +73,7 @@ int ext2checkfs()
     return 1;
 }
 
+// closes the filesystem, frees memory
 void ext2_close()
 {
     unsigned int i;
@@ -84,7 +90,7 @@ void ext2_close()
     free(ext2fs);
 }
 
-LLDIRLIST *ext2_get_top_level()
+LLDIRLIST *ext2_get_root()
 {
     INODETABLE it;
     LLDIR *ld = NULL;

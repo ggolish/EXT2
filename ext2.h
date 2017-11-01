@@ -79,18 +79,26 @@ typedef struct __attribute__((packed)) {
     char name[255];
 } LLDIR;
 
-typedef struct {
-    SUPERBLOCK *sb;
-    BLOCKGROUP **bg;
-    int fd;
-    unsigned int block_size;
-    unsigned int n_bg;
-} EXT2;
-
 typedef struct node {
     LLDIR *ld;
     struct node *next;
 } LLDIRLIST;
+
+typedef struct {
+    INODETABLE *inode;
+    char **content;
+    int flags;
+} EXT2_FILE;
+
+typedef struct {
+    SUPERBLOCK *sb;
+    BLOCKGROUP **bg;
+    EXT2_FILE **open_files;
+    int nfiles;
+    int fd;
+    unsigned int block_size;
+    unsigned int n_bg;
+} EXT2;
 
 typedef
     unsigned char *
@@ -100,15 +108,18 @@ typedef
     unsigned char
 BITMASK;
 
-void ext2_init(char *disk);
-void ext2_close(EXT2 *fs);
+extern void ext2_init(char *disk);
+extern void ext2_close(EXT2 *fs);
 
-int ext2_read_inode_bitmap(EXT2 *fs, int bgn, BITMAP *ibm);
+extern int ext2_read_inode_bitmap(EXT2 *fs, int bgn, BITMAP *ibm);
 
-LLDIRLIST *ext2_get_top_level(EXT2 *fs);
-void ext2_free_lldirlist(LLDIRLIST *t);
-void ext2_print_lldirlist(LLDIRLIST *lldir);
+extern LLDIRLIST *ext2_get_root(EXT2 *fs);
+extern void ext2_free_lldirlist(LLDIRLIST *t);
+extern void ext2_print_lldirlist(LLDIRLIST *lldir);
 
 extern int ext2checkfs();
+
+extern EXT2_FILE *ext2open(EXT2 *fs, const char *pathname, int flags);
+extern void ext2close(EXT2_FILE *ext2fd);
 
 #endif
