@@ -1,4 +1,4 @@
-#include "ext2io.h"
+#include "ext2.h"
 #include "utility.h"
 
 #include <string.h>
@@ -11,7 +11,7 @@ EXT2_FILE *ext2open(const char *pathname, int flags)
 {
     EXT2_FILE *ext2fd;
     char **pieces;
-    int len;
+    int len, i;
 
     if(!ext2checkfs())
         die("Filesystem not initialized! Call ext2_init(\"path-to-disk\")");
@@ -24,9 +24,15 @@ EXT2_FILE *ext2open(const char *pathname, int flags)
     // Split path into pieces
     pieces = (char **)split(pathname, &len);
 
+    // Free path memory
+    for(i = 0; i < len; ++i) free(pieces[i]);
+    free(pieces[i]);
+
     return ext2fd;
 }
 
+// Helper function that splits a string based on the character '/' and returns
+// an array of strings
 static char **split(const char *str, int *size)
 {
     char tmp[strlen(str)];
