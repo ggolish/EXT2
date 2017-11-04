@@ -2,6 +2,8 @@
 
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -50,8 +52,22 @@ ssize_t safe_read(int fd, void *buf, size_t count, const char *errmsg)
     return rv;
 }
 
+char *safe_getenv(const char *name)
+{
+    char *res;
+    char *errmsg;
+
+    if((res = getenv(name)) == NULL) {
+        errmsg = (char *)safe_malloc((strlen(name) + 50) * sizeof(char), "");
+        sprintf(errmsg, "Unable to load environment variable '%s'!", name);
+        die(errmsg);
+    }
+
+    return res;
+}
+
 void die(const char *errmsg)
 {
-    fprintf(stderr, "\033[31mFatal:\0330m %s\n", errmsg);
+    fprintf(stderr, "\033[31mFatal:\033[0m %s\n", errmsg);
     exit(69);
 }

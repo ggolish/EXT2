@@ -131,6 +131,19 @@ LLDIRLIST *ext2_get_root()
     return head;
 }
 
+LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir)
+{
+    LLDIRLIST *ptr;
+
+    for(ptr = root; ptr; ptr = ptr->next) {
+        if(memcmp(ptr->ld->name, subdir, ptr->ld->name_len) == 0) {
+            printf("Found subdir: %s\n", subdir);
+        }
+    }
+
+    return ptr;
+}
+
 void ext2_print_lldirlist(LLDIRLIST *lldir)
 {
     int i;

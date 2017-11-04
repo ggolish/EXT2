@@ -109,17 +109,21 @@ typedef
 BITMASK;
 
 extern void ext2_init(char *disk);
-extern void ext2_close(EXT2 *fs);
+extern void ext2_close();
 
-extern int ext2_read_inode_bitmap(EXT2 *fs, int bgn, BITMAP *ibm);
+extern int ext2_read_inode_bitmap(int bgn, BITMAP *ibm);
 
-extern LLDIRLIST *ext2_get_root(EXT2 *fs);
+extern LLDIRLIST *ext2_get_root();
 extern void ext2_free_lldirlist(LLDIRLIST *t);
 extern void ext2_print_lldirlist(LLDIRLIST *lldir);
+extern LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir);
 
 extern int ext2checkfs();
 
-extern EXT2_FILE *ext2open(EXT2 *fs, const char *pathname, int flags);
+#define EXT2_READ   0x1
+#define EXT2_WRITE  0x2
+
+extern EXT2_FILE *ext2open(const char *pathname, int flags);
 extern void ext2close(EXT2_FILE *ext2fd);
 
 #endif

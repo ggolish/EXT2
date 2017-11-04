@@ -1,6 +1,7 @@
 #include "ext2.h"
 #include "utility.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #define SIZE 10
@@ -10,11 +11,16 @@ static char **split(const char *str, int *size);
 EXT2_FILE *ext2open(const char *pathname, int flags)
 {
     EXT2_FILE *ext2fd;
+    LLDIRLIST *current_dir;
     char **pieces;
+    char *env_ptr;
     int len, i;
 
-    if(!ext2checkfs())
-        die("Filesystem not initialized! Call ext2_init(\"path-to-disk\")");
+    // Initialize filesystem if needed
+    if(!ext2checkfs()) {
+        env_ptr = safe_getenv("EXT2_IMAGE_PATH");
+        ext2_init(env_ptr);
+    }
 
     ext2fd = (EXT2_FILE *)safe_malloc(sizeof(EXT2_FILE), 
             "Failed to allocate memory for ext2 file structure!");
@@ -23,6 +29,16 @@ EXT2_FILE *ext2open(const char *pathname, int flags)
 
     // Split path into pieces
     pieces = (char **)split(pathname, &len);
+
+    // Read root directory
+    current_dir = ext2_get_root();
+
+    for(i = 0; i < len - 1; ++i) {
+        current_dir = ext2_read_subdir(current_dir, pieces[i]);
+        if(!current_dir) {
+            return NULL;
+        }
+    }
 
     // Free path memory
     for(i = 0; i < len; ++i) free(pieces[i]);
