@@ -1,7 +1,14 @@
 #include "ext2.h"
 
+#include <stdio.h>
+
 int main()
 {
-    ext2open("/mysubdir/stuff", EXT2_READ);
+    int fd;
+
+    fd = ext2open("/mysubdir/fibo.py", EXT2_READ);
+    printf("file descriptor: %d\n", fd);
+    fd = ext2open("/mysubdir/first.py", EXT2_READ);
+    printf("file descriptor: %d\n", fd);
     return 0;
 }

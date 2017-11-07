@@ -71,6 +71,9 @@ typedef struct __attribute__((packed)) {
     char i_osd2[12];
 } INODETABLE;
 
+#define EXT2_FT_REG_FILE    1
+#define EXT2_FT_DIR         2
+
 typedef struct __attribute__((packed)) {
     unsigned int inode;
     unsigned short rec_len;
@@ -95,6 +98,7 @@ typedef struct {
     BLOCKGROUP **bg;
     EXT2_FILE **open_files;
     int nfiles;
+    int maxfiles;
     int fd;
     unsigned int block_size;
     unsigned int n_bg;
@@ -111,19 +115,24 @@ BITMASK;
 extern void ext2_init(char *disk);
 extern void ext2_close();
 
+extern int ext2_insert_file(EXT2_FILE *ext2fd);
+extern int ext2_delete_file(int index);
+
+extern void ext2_get_inode(INODETABLE *it, int inode);
 extern int ext2_read_inode_bitmap(int bgn, BITMAP *ibm);
 
 extern LLDIRLIST *ext2_get_root();
+LLDIRLIST *ext2_read_dir(INODETABLE *it);
 extern void ext2_free_lldirlist(LLDIRLIST *t);
 extern void ext2_print_lldirlist(LLDIRLIST *lldir);
-extern LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir);
+LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir, int type, INODETABLE *file);
 
 extern int ext2checkfs();
 
 #define EXT2_READ   0x1
 #define EXT2_WRITE  0x2
 
-extern EXT2_FILE *ext2open(const char *pathname, int flags);
-extern void ext2close(EXT2_FILE *ext2fd);
+extern int ext2open(const char *pathname, int flags);
+extern int ext2close(int fd);
 
 #endif

@@ -1,6 +1,7 @@
 #include "ext2.h"
 #include "utility.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -8,13 +9,13 @@
 
 static char **split(const char *str, int *size);
 
-EXT2_FILE *ext2open(const char *pathname, int flags)
+int ext2open(const char *pathname, int flags)
 {
     EXT2_FILE *ext2fd;
     LLDIRLIST *current_dir;
     char **pieces;
     char *env_ptr;
-    int len, i;
+    int len, i, fd;
 
     // Initialize filesystem if needed
     if(!ext2checkfs()) {
@@ -25,6 +26,8 @@ EXT2_FILE *ext2open(const char *pathname, int flags)
     ext2fd = (EXT2_FILE *)safe_malloc(sizeof(EXT2_FILE), 
             "Failed to allocate memory for ext2 file structure!");
 
+    ext2fd->inode = (INODETABLE *)safe_malloc(sizeof(INODETABLE), "");
+
     ext2fd->flags = flags;
 
     // Split path into pieces
@@ -32,19 +35,30 @@ EXT2_FILE *ext2open(const char *pathname, int flags)
 
     // Read root directory
     current_dir = ext2_get_root();
+    ext2_print_lldirlist(current_dir);
 
     for(i = 0; i < len - 1; ++i) {
-        current_dir = ext2_read_subdir(current_dir, pieces[i]);
+        current_dir = ext2_read_subdir(current_dir, pieces[i], EXT2_FT_DIR, NULL);
         if(!current_dir) {
-            return NULL;
+            error_msg("Unable to open directory!");
+            return -1;
         }
+        printf("\n\n");
+        ext2_print_lldirlist(current_dir);
     }
+
+    if(!ext2_read_subdir(current_dir, pieces[len - 1], EXT2_FT_REG_FILE, ext2fd->inode)) {
+        error_msg("Unable to open file!");
+        return -1;
+    }
+
+    fd = ext2_insert_file(ext2fd);
 
     // Free path memory
     for(i = 0; i < len; ++i) free(pieces[i]);
     free(pieces[i]);
 
-    return ext2fd;
+    return fd;
 }
 
 // Helper function that splits a string based on the character '/' and returns

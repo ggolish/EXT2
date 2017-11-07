@@ -18,10 +18,10 @@
 // Global filesystem structure
 static EXT2 *ext2fs = NULL;
 
-static void error_msg(const char *err);
 static LLDIRLIST *make_lldirlist_node(LLDIR *ld);
 static void lldirlist_insert(LLDIRLIST **head, LLDIR *ld);
-static LLDIR *find_dir_by_name(LLDIRLIST *dir, char *name);
+static void get_blocks(int **blocks, int block, int indirection, int *n, int max);
+static int get_block_from_inode(INODETABLE *it, int **blocks);
 
 // Initializes the file system
 void ext2_init(char *disk)
@@ -62,7 +62,8 @@ void ext2_init(char *disk)
     }
 
     // Initialize open files list
-    ext2fs->open_files = NULL;
+    ext2fs->maxfiles = 2;
+    ext2fs->open_files = (EXT2_FILE **)safe_malloc(ext2fs->maxfiles * sizeof(EXT2_FILE *), "");
     ext2fs->nfiles = 0;
 }
 
@@ -90,40 +91,78 @@ void ext2_close()
     free(ext2fs);
 }
 
+int ext2_insert_file(EXT2_FILE *ext2fd)
+{
+    int index;
+
+    index = ext2fs->nfiles;
+    ext2fs->open_files[ext2fs->nfiles++] = ext2fd;
+    if(ext2fs->nfiles == ext2fs->maxfiles) {
+        ext2fs->maxfiles *= 2;
+        ext2fs->open_files = (EXT2_FILE **)safe_realloc(ext2fs->open_files, 
+                sizeof(EXT2_FILE *) * ext2fs->maxfiles, "");
+    }
+
+    return index;
+}
+
+int ext2_delete_file(int index)
+{
+    EXT2_FILE *ext2fd;
+
+    if(index >= ext2fs->nfiles) {
+        error_msg("File cannot be closed, it wasn't opened!");
+        return -1;
+    }
+
+    if(!(ext2fd = ext2fs->open_files[index])) {
+        error_msg("File cannot be closed, it wasn't opened!");
+        return -1;
+    }   
+
+    if(ext2fd->content) free(ext2fd->content);
+    if(ext2fd->inode) free(ext2fd->inode);
+    free(ext2fd);
+    return 0;
+}
+
 LLDIRLIST *ext2_get_root()
 {
     INODETABLE it;
-    LLDIR *ld = NULL;
+    LLDIRLIST *rootdir;
+
+    ext2_get_inode(&it, 2);
+    rootdir = ext2_read_dir(&it);
+    return rootdir;
+}
+
+LLDIRLIST *ext2_read_dir(INODETABLE *it)
+{
+    LLDIR *ld;
     LLDIRLIST *head = NULL;
-    unsigned int offset, i;
-
-    // Read inode structure pointed to by first block group descriptor
-    lseek(ext2fs->fd, ext2fs->bg[0]->bg_inode_table * ext2fs->block_size + ext2fs->sb->s_inode_size, SEEK_SET);
-
-    if((read(ext2fs->fd, &it, sizeof(INODETABLE))) <= 0) {
-        fprintf(stderr, "Unable to read first inode table!\n");
-        exit(69);
-    }
+    int *blocks;
+    int n, i;
+    unsigned int offset;
 
     // Check that the current inode is for a directory
-    if(!(it.i_mode & EXT2_S_IFDIR)) {
+    if(!(it->i_mode & EXT2_S_IFDIR)) {
         fprintf(stderr, "Inode found is not a directory!\n");
         exit(69);
     }
 
+    n = get_block_from_inode(it, &blocks);
+
     // Iteratively read / store linked list directory structures
     offset = 0;
     ld = (LLDIR *)malloc(sizeof(LLDIR));
-    for(i = 0; i < it.i_blocks; ++i) {
-        if(it.i_block[i] != 0) {
-            while(offset < ext2fs->block_size) {
-                lseek(ext2fs->fd, (it.i_block[i]) * ext2fs->block_size + offset, SEEK_SET);
-                read(ext2fs->fd, ld, sizeof(LLDIR));
-                lldirlist_insert(&head, ld);
-                offset += ld->rec_len;
-            }
-            offset = 0;
+    for(i = 0; i < n; ++i) {
+        while(offset < ext2fs->block_size) {
+            lseek(ext2fs->fd, blocks[i] * ext2fs->block_size + offset, SEEK_SET);
+            read(ext2fs->fd, ld, sizeof(LLDIR));
+            lldirlist_insert(&head, ld);
+            offset += ld->rec_len;
         }
+        offset = 0;
     }
 
     free(ld);
@@ -131,17 +170,30 @@ LLDIRLIST *ext2_get_root()
     return head;
 }
 
-LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir)
+LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir, int type, INODETABLE *file)
 {
     LLDIRLIST *ptr;
+    LLDIRLIST *newdir = NULL;
+    INODETABLE it;
 
     for(ptr = root; ptr; ptr = ptr->next) {
         if(memcmp(ptr->ld->name, subdir, ptr->ld->name_len) == 0) {
-            printf("Found subdir: %s\n", subdir);
+            switch(type) {
+                case EXT2_FT_DIR:
+                    ext2_get_inode(&it, ptr->ld->inode);
+                    newdir = ext2_read_dir(&it);
+                    return newdir;
+                case EXT2_FT_REG_FILE:
+                    ext2_get_inode(file, ptr->ld->inode);
+                    return root;
+                default:
+                    error_msg("Invalid filetype!");
+                    return NULL;
+            }
         }
     }
 
-    return ptr;
+    return newdir;
 }
 
 void ext2_print_lldirlist(LLDIRLIST *lldir)
@@ -166,6 +218,14 @@ void ext2_free_lldirlist(LLDIRLIST *t)
     free(t);
 }
 
+void ext2_get_inode(INODETABLE *it, int inode)
+{
+    inode--;
+    lseek(ext2fs->fd, ext2fs->bg[0]->bg_inode_table * ext2fs->block_size + 
+            (inode * ext2fs->sb->s_inode_size), SEEK_SET);
+    safe_read(ext2fs->fd, it, ext2fs->sb->s_inode_size, "Unable to read inode!");
+}
+
 int ext2_read_inode_bitmap(int bgn, BITMAP *ibm)
 {
     int nbytes;
@@ -177,23 +237,45 @@ int ext2_read_inode_bitmap(int bgn, BITMAP *ibm)
     return nbytes;
 }
 
-INODETABLE *ext2_read_inode(LLDIRLIST *dir, char **path, int index, int len)
+static int get_block_from_inode(INODETABLE *it, int **blocks)
 {
-    if(index == len) return NULL;
-    
-    LLDIR *ld;
+    int i, n, maxindex;
 
-    if(!(ld = find_dir_by_name(dir, path[index]))) return NULL;
-    return NULL;
+    int indir_list[] = {
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 1, 2, 3
+    };
+
+    n = 0;
+    maxindex = it->i_blocks / (2 << ext2fs->sb->s_log_block_size);
+    (*blocks) = (int *)safe_malloc(maxindex * sizeof(int), "");
+    for(i = 0; i < 15; ++i) {
+        get_blocks(blocks, it->i_block[i], indir_list[i], &n, maxindex);
+    }
+    
+    return n;
 }
 
-static LLDIR *find_dir_by_name(LLDIRLIST *dir, char *name)
-{ 
-    if(!dir) return NULL;
+static void get_blocks(int **blocks, int block, int indirection, int *n, int max)
+{
+    unsigned int newblocks[ext2fs->block_size / 4], i;
+    int ln;
 
-    dir->ld->name[dir->ld->name_len + 1] = '\0';
-    if(strcmp(name, dir->ld->name) == 0) return dir->ld;
-    return find_dir_by_name(dir->next, name);
+    lseek(ext2fs->fd, ext2fs->block_size * block, SEEK_SET);
+    if(indirection == 0) {
+        ln = (*n);
+        if(ln < max) {
+            (*blocks)[ln++] = block;
+        }
+        (*n) = ln;
+    } else {
+        safe_read(ext2fs->fd, newblocks, ext2fs->block_size, "");
+        for(i = 0; i < ext2fs->block_size / 4; ++i) {
+            get_blocks(blocks, newblocks[i], indirection - 1, n, max);
+            if((*n) >= max) break;
+        }
+    }
 }
 
 static LLDIRLIST *make_lldirlist_node(LLDIR *ld)
@@ -215,7 +297,3 @@ static void lldirlist_insert(LLDIRLIST **head, LLDIR *ld)
     (*head) = new_node;
 }
 
-static void error_msg(const char *err)
-{
-    fprintf(stderr, "\033[31m%s\033[0m\n", err);
-}
