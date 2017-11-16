@@ -123,6 +123,14 @@ int ext2_delete_file(int index)
     if(ext2fd->content) free(ext2fd->content);
     if(ext2fd->inode) free(ext2fd->inode);
     free(ext2fd);
+
+    ext2fs->open_files[index] = NULL;
+
+    if(ext2fs->nfiles == 1) {
+        ext2fs->nfiles = 0;
+        free(ext2fs->open_files);
+    }
+
     return 0;
 }
 
