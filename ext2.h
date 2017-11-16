@@ -122,10 +122,10 @@ extern void ext2_get_inode(INODETABLE *it, int inode);
 extern int ext2_read_inode_bitmap(int bgn, BITMAP *ibm);
 
 extern LLDIRLIST *ext2_get_root();
-LLDIRLIST *ext2_read_dir(INODETABLE *it);
+extern LLDIRLIST *ext2_read_dir(INODETABLE *it);
 extern void ext2_free_lldirlist(LLDIRLIST *t);
 extern void ext2_print_lldirlist(LLDIRLIST *lldir);
-LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir, int type, INODETABLE *file);
+extern LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir, int type, INODETABLE *file);
 
 extern int ext2checkfs();
 

@@ -27,15 +27,14 @@ int ext2open(const char *pathname, int flags)
             "Failed to allocate memory for ext2 file structure!");
 
     ext2fd->inode = (INODETABLE *)safe_malloc(sizeof(INODETABLE), "");
-
     ext2fd->flags = flags;
+    ext2fd->content = NULL;
 
     // Split path into pieces
     pieces = (char **)split(pathname, &len);
 
     // Read root directory
     current_dir = ext2_get_root();
-    ext2_print_lldirlist(current_dir);
 
     for(i = 0; i < len - 1; ++i) {
         current_dir = ext2_read_subdir(current_dir, pieces[i], EXT2_FT_DIR, NULL);
@@ -43,8 +42,6 @@ int ext2open(const char *pathname, int flags)
             error_msg("Unable to open directory!");
             return -1;
         }
-        printf("\n\n");
-        ext2_print_lldirlist(current_dir);
     }
 
     if(!ext2_read_subdir(current_dir, pieces[len - 1], EXT2_FT_REG_FILE, ext2fd->inode)) {
@@ -56,7 +53,7 @@ int ext2open(const char *pathname, int flags)
 
     // Free path memory
     for(i = 0; i < len; ++i) free(pieces[i]);
-    free(pieces[i]);
+    free(pieces);
 
     return fd;
 }

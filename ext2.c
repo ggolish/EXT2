@@ -135,11 +135,6 @@ int ext2_delete_file(int index)
 
     ext2fs->open_files[index] = NULL;
 
-    if(ext2fs->nfiles == 1) {
-        ext2fs->nfiles = 0;
-        free(ext2fs->open_files);
-    }
-
     return 0;
 }
 

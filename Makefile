@@ -1,11 +1,14 @@
 CC = gcc
-OBJS = ext2open.o ext2read.o ext2write.o ext2seek.o ext2close.o utility.o
+OBJS = ext2open.o ext2read.o ext2write.o ext2seek.o ext2close.o utility.o ext2.o
 ARGS = -Wall -g
 TARGET = ext2lib
 LIBS = -lm
 
 $(TARGET): $(OBJS)
 	ar rcs ext2lib $?
+
+ext2.o: ext2.c ext2.h
+	$(CC) $(ARGS) -c $< $(LIBS)
 
 ext2read.o: ext2read.c  ext2.h
 	$(CC) $(ARGS) -c $< $(LIBS)
