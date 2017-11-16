@@ -94,6 +94,15 @@ void ext2_close()
 int ext2_insert_file(EXT2_FILE *ext2fd)
 {
     int index;
+    int i;
+
+    // Check for closed files that can be replaced
+    for(i = 0; i < ext2fs->nfiles; i++) {
+        if(ext2fs->open_files[i] == NULL) {
+            ext2fs->open_files[i] = ext2fd;
+            return i;
+        }
+    }
 
     index = ext2fs->nfiles;
     ext2fs->open_files[ext2fs->nfiles++] = ext2fd;
