@@ -142,6 +142,12 @@ extern int ext2checkfs();
 
 extern int ext2open(const char *pathname, int flags);
 extern int ext2close(int fd);
-int ext2read(int fd, char *buf, int count);
+extern int ext2read(int fd, char *buf, int count);
+
+#define EXT2_SEEK_SET 1
+#define EXT2_SEEK_CUR 2
+#define EXT2_SEEK_END 3
+
+extern int ext2seek(int fd, int offset, int whence);
 
 #endif
