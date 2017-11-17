@@ -2,6 +2,7 @@
 #include "utility.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 int ext2read(int fd, char *buf, int count)
@@ -16,6 +17,8 @@ int ext2read(int fd, char *buf, int count)
         return -1;
     }
 
+    if((unsigned)(ext2fd->cursor + count) > ext2fd->inode->i_size) count -= (ext2fd->cursor + count) - ext2fd->inode->i_size;
+
     blocksize = ext2_get_blocksize();
     currblock = 0;
     offset = ext2fd->cursor;
@@ -24,8 +27,6 @@ int ext2read(int fd, char *buf, int count)
         currblock++;
     }
     bytesread = 0;
-
-    if(offset + count > blocksize) count -= (offset + count) - blocksize;
 
     for(i = currblock; i < ext2fd->nblocks; ++i) {
         toread = (count >= blocksize) ? blocksize : count;

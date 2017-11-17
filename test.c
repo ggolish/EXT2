@@ -1,6 +1,7 @@
 #include "ext2.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 int main()
@@ -9,20 +10,11 @@ int main()
     int n;
     char buffer[20];
 
-    fd = ext2open("/mysubdir/fibo.py", EXT2_READ);
+    if((fd = ext2open("/EXT2/ext2.h", EXT2_READ)) == -1) exit(69);
     printf("file descriptor: %d\n", fd);
 
     while((n = ext2read(fd, buffer, 20))) {
-        write(1, buffer, 20);
-    }
-    printf("\n");
-
-    ext2close(fd);
-    fd = ext2open("/mysubdir/first.py", EXT2_READ);
-    printf("file descriptor: %d\n", fd);
-
-    while((n = ext2read(fd, buffer, 20))) {
-        write(1, buffer, 20);
+        write(1, buffer, n);
     }
     printf("\n");
 

@@ -68,7 +68,7 @@ char *safe_getenv(const char *name)
 
 void error_msg(const char *err)
 {
-    fprintf(stderr, "\033[31m%s\033[0m\n", err);
+    fprintf(stderr, "\033[31mWarning:\033[0m %s\n", err);
 }
 
 void die(const char *errmsg)
