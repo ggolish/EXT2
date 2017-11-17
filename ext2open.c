@@ -29,6 +29,7 @@ int ext2open(const char *pathname, int flags)
     ext2fd->inode = (INODETABLE *)safe_malloc(sizeof(INODETABLE), "");
     ext2fd->flags = flags;
     ext2fd->content = NULL;
+    ext2fd->cursor = 0;
 
     // Split path into pieces
     pieces = (char **)split(pathname, &len);

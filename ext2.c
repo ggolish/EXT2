@@ -91,6 +91,17 @@ void ext2_close()
     free(ext2fs);
 }
 
+int ext2_get_blocksize()
+{
+    return ext2fs->block_size;
+}
+
+int ext2_read_block(int blockid, char *buf, int count, int offset)
+{
+    lseek(ext2fs->fd, ext2fs->block_size * blockid + offset, SEEK_SET);
+    return read(ext2fs->fd, buf, count);
+}
+
 int ext2_insert_file(EXT2_FILE *ext2fd)
 {
     int index;
@@ -138,6 +149,13 @@ int ext2_delete_file(int index)
     ext2fs->open_files[index] = NULL;
 
     return 0;
+}
+
+EXT2_FILE *ext2_get_file(int index)
+{
+    if(index < 0) return NULL;
+    if(index >= ext2fs->nfiles) return NULL;
+    return ext2fs->open_files[index];
 }
 
 LLDIRLIST *ext2_get_root()

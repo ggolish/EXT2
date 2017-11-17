@@ -93,6 +93,7 @@ typedef struct {
     int flags;
     int *blocks;
     int nblocks;
+    int cursor;
 } EXT2_FILE;
 
 typedef struct {
@@ -117,8 +118,13 @@ BITMASK;
 extern void ext2_init(char *disk);
 extern void ext2_close();
 
+extern int ext2_get_blocksize();
+
 extern int ext2_insert_file(EXT2_FILE *ext2fd);
 extern int ext2_delete_file(int index);
+extern EXT2_FILE *ext2_get_file(int index);
+
+extern int ext2_read_block(int blockid, char *buf, int count, int offset);
 
 extern void ext2_get_inode(INODETABLE *it, int inode);
 extern int ext2_read_inode_bitmap(int bgn, BITMAP *ibm);
@@ -136,5 +142,6 @@ extern int ext2checkfs();
 
 extern int ext2open(const char *pathname, int flags);
 extern int ext2close(int fd);
+int ext2read(int fd, char *buf, int count);
 
 #endif
