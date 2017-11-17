@@ -137,8 +137,9 @@ extern LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir, int type, INOD
 
 extern int ext2checkfs();
 
-#define EXT2_READ   0x1
-#define EXT2_WRITE  0x2
+#define EXT2_RDONLY     0x1
+#define EXT2_WRONLY     0x2
+#define EXT2_CREAT      0x4
 
 extern int ext2open(const char *pathname, int flags);
 extern int ext2close(int fd);

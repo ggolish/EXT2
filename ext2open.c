@@ -46,7 +46,8 @@ int ext2open(const char *pathname, int flags)
     }
 
     if(!ext2_read_subdir(current_dir, pieces[len - 1], EXT2_FT_REG_FILE, ext2fd->inode)) {
-        error_msg("Unable to open file!");
+        if((ext2fd->flags & (EXT2_WRONLY)) && (ext2fd->flags & (EXT2_CREAT))) printf("Need to create file: %s\n", pieces[len - 1]);
+        else error_msg("Unable to open file!");
         return -1;
     }
 
