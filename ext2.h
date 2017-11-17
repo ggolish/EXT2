@@ -91,6 +91,8 @@ typedef struct {
     INODETABLE *inode;
     char **content;
     int flags;
+    int *blocks;
+    int nblocks;
 } EXT2_FILE;
 
 typedef struct {

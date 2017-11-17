@@ -96,6 +96,8 @@ int ext2_insert_file(EXT2_FILE *ext2fd)
     int index;
     int i;
 
+    ext2fd->nblocks = get_block_from_inode(ext2fd->inode, &ext2fd->blocks);
+
     // Check for closed files that can be replaced
     for(i = 0; i < ext2fs->nfiles; i++) {
         if(ext2fs->open_files[i] == NULL) {
