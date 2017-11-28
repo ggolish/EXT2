@@ -9,7 +9,7 @@ int ext2seek(int fd, int offset, int whence)
 
     switch(whence) {
         case EXT2_SEEK_SET:
-            if(offset > 0 && (unsigned)offset < ext2fd->inode->i_size)
+            if(offset >= 0 && (unsigned)offset < ext2fd->inode->i_size)
                 ext2fd->cursor = offset;
             else return -1;
             break;

@@ -125,6 +125,8 @@ extern int ext2_delete_file(int index);
 extern EXT2_FILE *ext2_get_file(int index);
 
 extern int ext2_read_block(int blockid, char *buf, int count, int offset);
+extern int ext2_write_block(int blockid, const char *buf, int count, int offset);
+extern int ext2_get_free_block(int bgn);
 
 extern void ext2_get_inode(INODETABLE *it, int inode);
 extern int ext2_read_inode_bitmap(int bgn, BITMAP *ibm);
@@ -140,6 +142,7 @@ extern int ext2checkfs();
 #define EXT2_RDONLY     0x1
 #define EXT2_WRONLY     0x2
 #define EXT2_CREAT      0x4
+#define EXT2_TRUNC      0x8
 
 extern int ext2open(const char *pathname, int flags);
 extern int ext2close(int fd);
@@ -150,5 +153,7 @@ extern int ext2read(int fd, char *buf, int count);
 #define EXT2_SEEK_END 3
 
 extern int ext2seek(int fd, int offset, int whence);
+
+extern int ext2write(int fd, const char *buf, int count);
 
 #endif

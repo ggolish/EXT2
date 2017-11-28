@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
-#include <math.h>
 
 #define BYTE 8
 #define KB 1024
@@ -22,6 +21,7 @@ static LLDIRLIST *make_lldirlist_node(LLDIR *ld);
 static void lldirlist_insert(LLDIRLIST **head, LLDIR *ld);
 static void get_blocks(int **blocks, int block, int indirection, int *n, int max);
 static int get_block_from_inode(INODETABLE *it, int **blocks);
+static int read_block_bitmap(int bgn, BITMAP *bbm);
 
 // Initializes the file system
 void ext2_init(char *disk)
@@ -35,7 +35,7 @@ void ext2_init(char *disk)
             "Failed to allocate memory for superblock!");
 
     // Open filesystem
-    ext2fs->fd = safe_open(disk, O_APPEND, "Unable to open disk!");
+    ext2fs->fd = safe_open(disk, O_RDWR, "Unable to open disk!");
 
     // Read superblock from filesystem
     lseek(ext2fs->fd, SB_OFFSET, SEEK_SET);
@@ -100,6 +100,12 @@ int ext2_read_block(int blockid, char *buf, int count, int offset)
 {
     lseek(ext2fs->fd, ext2fs->block_size * blockid + offset, SEEK_SET);
     return read(ext2fs->fd, buf, count);
+}
+
+int ext2_write_block(int blockid, const char *buf, int count, int offset)
+{
+    lseek(ext2fs->fd, ext2fs->block_size * blockid + offset, SEEK_SET);
+    return write(ext2fs->fd, buf, count);
 }
 
 int ext2_insert_file(EXT2_FILE *ext2fd)
@@ -262,10 +268,39 @@ int ext2_read_inode_bitmap(int bgn, BITMAP *ibm)
 {
     int nbytes;
 
-    nbytes = ceil((float)ext2fs->sb->s_inodes_per_group / BYTE);
+    nbytes = (float)(ext2fs->sb->s_inodes_per_group / BYTE);
     (*ibm) = (BITMAP)malloc(nbytes);
     lseek(ext2fs->fd, (ext2fs->bg[bgn]->bg_inode_bitmap) * ext2fs->block_size, SEEK_SET);
     read(ext2fs->fd, (*ibm), nbytes);
+    return nbytes;
+}
+
+int ext2_get_free_block(int bgn)
+{
+    BITMAP bbm;
+    int nbytes, blockid, mask, i, j;
+
+    nbytes = read_block_bitmap(bgn, &bbm);
+    blockid = 0;
+    mask = 1;
+    for(i = 0; i < nbytes; ++i) {
+        for(j = 0; j < BYTE; ++j) {
+            if(!(bbm[i] & (mask << j))) return blockid;
+            blockid++;
+        }
+    }
+    free(bbm);
+    return 0;
+}
+
+static int read_block_bitmap(int bgn, BITMAP *bbm)
+{
+    int nbytes;
+
+    nbytes = (float)(ext2fs->sb->s_blocks_per_group / BYTE);
+    (*bbm) = (BITMAP)safe_malloc(nbytes, "");
+    lseek(ext2fs->fd, ext2fs->bg[bgn]->bg_block_bitmap * ext2fs->block_size, SEEK_SET);
+    safe_read(ext2fs->fd, (*bbm), nbytes, "");
     return nbytes;
 }
 
