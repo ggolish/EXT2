@@ -1,4 +1,5 @@
 #include "ext2.h"
+#include "ext2io.h"
 #include "utility.h"
 
 #include <stdio.h>
@@ -45,11 +46,13 @@ int ext2open(const char *pathname, int flags)
         }
     }
 
-    if(!ext2_read_subdir(current_dir, pieces[len - 1], EXT2_FT_REG_FILE, ext2fd->inode)) {
+    if(!ext2_read_subdir(current_dir, pieces[len - 1], EXT2_FT_REG_FILE, &ext2fd->iid)) {
         if((ext2fd->flags & (EXT2_WRONLY)) && (ext2fd->flags & (EXT2_CREAT))) printf("Need to create file: %s\n", pieces[len - 1]);
         else error_msg("Unable to open file!");
         return -1;
     }
+
+    ext2_get_inode(ext2fd->inode, ext2fd->iid);
 
     fd = ext2_insert_file(ext2fd);
 

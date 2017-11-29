@@ -1,34 +1,26 @@
-#include "ext2.h"
+#include "ext2io.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 int main()
 {
-    int fd;
+    int fd, ext2fd;
     int n;
-    char buffer[500];
+    char buffer[5000];
 
-    if((fd = ext2open("/EXT2/ext2.h", EXT2_WRONLY | EXT2_CREAT)) == -1) exit(69);
-    printf("file descriptor: %d\n", fd);
+    fd = open("ext2.h", O_RDONLY);
+    ext2fd = ext2open("/EXT2/ext2.h", EXT2_WRONLY);
+    while((n = read(fd, buffer, 5000))) {
+        ext2write(ext2fd, buffer, n);
+    }
 
-    n = ext2read(fd, buffer, 500);
-    write(1, buffer, n);
-    printf("\n");
+    close(fd);
+    ext2close(ext2fd);
 
-    ext2seek(fd, 0, EXT2_SEEK_SET);
-
-    printf("return value: %d\n", ext2write(fd, "Does this work?", 15));
-
-    ext2seek(fd, 0, EXT2_SEEK_SET);
-
-    n = ext2read(fd, buffer, 500);
-    write(1, buffer, n);
-    printf("\n");
-
-//     ext2write(fd, "Testing", 450);
-
-    ext2close(fd);
     return 0;
 }

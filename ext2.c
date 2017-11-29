@@ -108,6 +108,38 @@ int ext2_write_block(int blockid, const char *buf, int count, int offset)
     return write(ext2fs->fd, buf, count);
 }
 
+int ext2_add_blocks(EXT2_FILE *extfd, int nblocks)
+{
+    BITMAP bbm;
+    int free_blocks[nblocks], len;
+    int nbytes, mask, blockid;
+    int i, j;
+
+    nbytes = read_block_bitmap(0, &bbm);
+    mask = 1;
+    blockid = 0;
+    len = 0;
+    for(i = 0; i < nbytes; ++i) {
+        for(j = 0; j < BYTE; ++j) {
+            if(!(bbm[i] & (mask << j)))
+                free_blocks[len++] = blockid;
+            blockid++;
+            if(len == nblocks) break;
+        }
+        if(len == nblocks) break;
+    }
+
+    if(len < nblocks) return -1;
+
+    printf("Adding blocks: ");
+    for(i = 0; i < nblocks; ++i) {
+        printf("%d ", free_blocks[i]);
+    }
+    printf("\n");
+
+    return nblocks;
+}
+
 int ext2_insert_file(EXT2_FILE *ext2fd)
 {
     int index;
@@ -208,7 +240,7 @@ LLDIRLIST *ext2_read_dir(INODETABLE *it)
     return head;
 }
 
-LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir, int type, INODETABLE *file)
+LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir, int type, int *file)
 {
     LLDIRLIST *ptr;
     LLDIRLIST *newdir = NULL;
@@ -222,7 +254,7 @@ LLDIRLIST *ext2_read_subdir(LLDIRLIST *root, char *subdir, int type, INODETABLE 
                     newdir = ext2_read_dir(&it);
                     return newdir;
                 case EXT2_FT_REG_FILE:
-                    ext2_get_inode(file, ptr->ld->inode);
+                    (*file) = ptr->ld->inode;
                     return root;
                 default:
                     error_msg("Invalid filetype!");
@@ -262,6 +294,15 @@ void ext2_get_inode(INODETABLE *it, int inode)
     lseek(ext2fs->fd, ext2fs->bg[0]->bg_inode_table * ext2fs->block_size + 
             (inode * ext2fs->sb->s_inode_size), SEEK_SET);
     safe_read(ext2fs->fd, it, ext2fs->sb->s_inode_size, "Unable to read inode!");
+}
+
+void ext2_update_inode(INODETABLE *it, int inode)
+{
+    inode--;
+    lseek(ext2fs->fd, ext2fs->bg[0]->bg_inode_table * ext2fs->block_size + 
+            (inode * ext2fs->sb->s_inode_size), SEEK_SET);
+    if(write(ext2fs->fd, it, ext2fs->sb->s_inode_size) <= 0) 
+        error_msg("Failed to write inode!");
 }
 
 int ext2_read_inode_bitmap(int bgn, BITMAP *ibm)
@@ -355,7 +396,7 @@ static LLDIRLIST *make_lldirlist_node(LLDIR *ld)
     tmp->next = NULL;
     return tmp;
 }
-
+;
 static void lldirlist_insert(LLDIRLIST **head, LLDIR *ld)
 {
     LLDIRLIST *new_node = make_lldirlist_node(ld);

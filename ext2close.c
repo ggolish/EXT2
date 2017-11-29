@@ -1,4 +1,5 @@
 #include "ext2.h"
+#include "ext2io.h"
 #include "utility.h"
 
 int ext2close(int fd)

@@ -1,4 +1,5 @@
 #include "ext2.h"
+#include "ext2io.h"
 #include "utility.h"
 
 #include <stdio.h>
@@ -14,6 +15,11 @@ int ext2read(int fd, char *buf, int count)
 
     if(!(ext2fd = ext2_get_file(fd))) {
         error_msg("Invalid file descriptor, cannot read!");
+        return -1;
+    }
+
+    if(!(ext2fd->flags & EXT2_RDONLY)) {
+        error_msg("Read flag is not set, cannot read!");
         return -1;
     }
 

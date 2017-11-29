@@ -1,4 +1,5 @@
 #include "ext2.h"
+#include "ext2io.h"
 #include "utility.h"
 
 #include <stdio.h>
@@ -17,6 +18,11 @@ int ext2write(int fd, const char *buf, int count)
         return -1;
     }
 
+    if(!(ext2fd->flags & EXT2_WRONLY)) {
+        error_msg("Write flag not set, cannot write!");
+        return -1;
+    }
+
     endpos = ext2fd->cursor + count;
     blocksize = ext2_get_blocksize();
     blocksneeded = ext2fd->nblocks;
@@ -25,8 +31,10 @@ int ext2write(int fd, const char *buf, int count)
         blocksneeded++;
         totalbytes += blocksize;
     }
+
     if(blocksneeded != ext2fd->nblocks) {
-        die("More blocks are needed!");
+        ext2_add_blocks(ext2fd, blocksneeded - ext2fd->nblocks);
+        return -1;
     }
 
     currblock = 0;
@@ -42,6 +50,12 @@ int ext2write(int fd, const char *buf, int count)
     }
 
     ext2fd->cursor += written;
+
+    // update inode if file size increases
+    if((unsigned)ext2fd->cursor > ext2fd->inode->i_size) {
+        ext2fd->inode->i_size = ext2fd->cursor; 
+        ext2_update_inode(ext2fd->inode, ext2fd->iid);
+    }
 
     return written;
 }
