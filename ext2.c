@@ -108,12 +108,13 @@ int ext2_write_block(int blockid, const char *buf, int count, int offset)
     return write(ext2fs->fd, buf, count);
 }
 
-int ext2_add_blocks(EXT2_FILE *extfd, int nblocks)
+int ext2_add_blocks(EXT2_FILE *ext2fd, int nblocks)
 {
     BITMAP bbm;
     int free_blocks[nblocks], len;
     int nbytes, mask, blockid;
     int i, j;
+    int maxindex, indirection;
 
     nbytes = read_block_bitmap(0, &bbm);
     mask = 1;
@@ -131,11 +132,17 @@ int ext2_add_blocks(EXT2_FILE *extfd, int nblocks)
 
     if(len < nblocks) return -1;
 
-    printf("Adding blocks: ");
     for(i = 0; i < nblocks; ++i) {
-        printf("%d ", free_blocks[i]);
+        maxindex = ext2fd->inode->i_blocks / (2 << ext2fs->sb->s_log_block_size);
+        printf("maxindex = %d\n", maxindex);
+        if(maxindex <= 11) {
+            ext2fd->inode->i_block[maxindex] = free_blocks[i];
+            ext2fd->inode->i_blocks += ext2fs->block_size / 512;
+        } else {
+        }
     }
-    printf("\n");
+    maxindex = ext2fd->inode->i_blocks / (2 << ext2fs->sb->s_log_block_size);
+    printf("maxindex = %d\n", maxindex);
 
     return nblocks;
 }
